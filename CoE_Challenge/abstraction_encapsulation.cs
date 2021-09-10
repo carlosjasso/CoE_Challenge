@@ -14,8 +14,11 @@
 //object oriented
 
 
+using CoE_Challenge.Promos;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 
 namespace unsolved
 {
@@ -32,35 +35,63 @@ namespace unsolved
             var dip = new Item { Name = "Dip", Price = 10m };
             
             var order = new Order();
-            order.Lines.Add(new OrderLine { Item = shampoo, Quantity = 2 });
-            order.Lines.Add(new OrderLine { Item = shampoo, Quantity = 2 });
-            order.Lines.Add(new OrderLine { Item = soap, Quantity = 5 });
-            order.Lines.Add(new OrderLine{Item = nachos, Quantity = 2});
-            order.Lines.Add(new OrderLine{Item = soda, Quantity = 1});
-            order.Lines.Add(new OrderLine{Item = chips, Quantity = 1});
+            order.AddLine(new OrderLine { Item = shampoo, Quantity = 2 });
+            order.AddLine(new OrderLine { Item = shampoo, Quantity = 2 });
+            order.AddLine(new OrderLine { Item = soap, Quantity = 5 });
+            order.AddLine(new OrderLine{Item = nachos, Quantity = 2});
+            order.AddLine(new OrderLine{Item = soda, Quantity = 1});
+            order.AddLine(new OrderLine{Item = chips, Quantity = 1});
 
             
             decimal total = 0;
-            foreach (var line in order.Lines)
+            foreach (var line in order.GetLines())
             {
                 total += line.Quantity * line.Item.Price;
             }
 
-            decimal tax = 0;//total * 0.16m;
+            decimal tax = total * 0.16m;//total * 0.16m;
             Console.WriteLine($"the expected cost is 101.3840. The actual cost is {total + tax}");
-            
+
+            // Present a visual representation of the order lines
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string orderLines = JsonSerializer.Serialize(order.GetLines(), options);
+            Console.WriteLine($"\"OrderLines\": {orderLines}");
         }
     }
 
     public class Order
     {
+        private List<OrderLine> _lines;
+
         public Order()
         {
-            Lines = new List<OrderLine>();
+            _lines = new List<OrderLine>();
         }
 
-        public List<OrderLine> Lines { get; set; }
+        public void AddLine(OrderLine line)
+        {
+            int count = _lines.Count(l => l.Item.Name == line.Item.Name);
+            if (count == 0)
+                _lines.Add(line);
+            else
+                IncrementQuantity(line); // Prevents having duplicates in _lines
+        }
 
+        private void IncrementQuantity(OrderLine line)
+        {
+            var item = _lines.First(l => l.Item.Name == line.Item.Name);
+            int index = _lines.IndexOf(item);
+            _lines[index].Quantity += line.Quantity;
+        }
+
+        public List<OrderLine> GetLines()
+        {
+            var lines = new List<OrderLine>(new DiscountPromo().Apply(_lines));
+            lines.AddRange(new SoapPromo().Apply(_lines));
+            lines.AddRange(new DipPromo().Apply(_lines));
+            lines.AddRange(new ChipsPromo().Apply(_lines));
+            return lines;
+        }
     }
 
     public class OrderLine
